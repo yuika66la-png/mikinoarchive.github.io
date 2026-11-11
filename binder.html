@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>card binder — mikinoarchive</title>
+<meta name="description" content="Flip through the mikinoarchive collection in 3D: every piece in stock, one card at a time.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alex+Brush&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #f3ece0;
+    --dim: #b8ad9b;
+    --glass: rgba(26, 19, 14, .74);
+    --line: rgba(243, 236, 224, .16);
+    --accent: #d8b06a;
+    --red: #af1c17;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+
+  html, body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: #1b120c;
+    color: var(--ink);
+    font: 16px/1.4 'EB Garamond', Georgia, serif;
+  }
+
+  #scene {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    touch-action: none;
+    outline: none;
+  }
+
+  .glass {
+    background: var(--glass);
+    border: 1px solid var(--line);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+
+  button { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  #top {
+    position: fixed;
+    top: max(14px, env(safe-area-inset-top));
+    left: 14px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 7px 16px 8px;
+    border-radius: 999px;
+  }
+  #top a {
+    font-family: 'Alex Brush', cursive;
+    font-size: 26px;
+    line-height: 1;
+    color: #f1d9a4;
+    text-decoration: none;
+  }
+  #top span { font-size: 15px; font-style: italic; color: var(--dim); }
+
+  #pager {
+    position: fixed;
+    left: 50%;
+    bottom: max(16px, env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 999px;
+  }
+  #pager button {
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    font-size: 26px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  #pager button:hover:not(:disabled) { background: rgba(255, 255, 255, .12); }
+  #pager button:disabled { opacity: .3; cursor: default; }
+  #page-label { min-width: 132px; text-align: center; font-size: 16px; font-variant-numeric: tabular-nums; }
+
+  #tip {
+    position: fixed;
+    left: 0;
+    top: 0;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 15px;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  #card-info {
+    position: fixed;
+    padding: 18px 20px 20px;
+    border-radius: 12px;
+    overflow-y: auto;
+  }
+  body[data-inspect=side] #card-info {
+    top: 50%;
+    right: max(24px, calc(50% - 560px));
+    width: 320px;
+    max-height: 86vh;
+    transform: translateY(-50%);
+  }
+  body[data-inspect=stack] #card-info {
+    left: 12px;
+    right: 12px;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    max-height: 40vh;
+  }
+  #card-info .no { color: var(--accent); font-size: 13px; letter-spacing: .1em; text-transform: uppercase; }
+  #card-info h2 { margin: 2px 36px 0 0; font-size: 25px; font-weight: 500; line-height: 1.2; }
+  #card-info .price { margin-top: 8px; font-size: 30px; font-variant-numeric: tabular-nums; }
+  #card-info dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin: 12px 0 0; font-size: 17px; }
+  #card-info dt { color: var(--dim); font-style: italic; }
+  #card-info dd { margin: 0; text-align: right; }
+  #card-info .shop {
+    display: block;
+    margin-top: 16px;
+    padding: 11px 12px;
+    border-radius: 8px;
+    background: var(--red);
+    color: #fff;
+    font-size: 18px;
+    text-align: center;
+    text-decoration: none;
+  }
+  #card-info .shop:hover { background: #c4251f; }
+  #card-info .hint { margin: 10px 0 0; font-size: 14px; font-style: italic; color: var(--dim); }
+  #card-info .card-nav { display: flex; gap: 8px; margin-top: 12px; }
+  #card-info .card-nav button {
+    flex: 1;
+    min-height: 42px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, .08);
+    cursor: pointer;
+  }
+  #card-info .card-nav button:hover { background: rgba(255, 255, 255, .16); }
+  #card-info .close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 38px;
+    height: 38px;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .1);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  #loading {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-size: 19px;
+    font-style: italic;
+    color: var(--dim);
+    pointer-events: none;
+    transition: opacity .6s ease;
+  }
+  #loading.done { opacity: 0; }
+
+  #fallback {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    gap: 12px;
+    padding: 24px;
+    text-align: center;
+  }
+  #fallback a { color: var(--accent); font-size: 19px; }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .sr-only:focus-within {
+    position: fixed;
+    top: 70px;
+    left: 14px;
+    width: auto;
+    height: auto;
+    max-height: 60vh;
+    overflow: auto;
+    clip: auto;
+    padding: 10px;
+    border-radius: 10px;
+    background: var(--glass);
+  }
+  .sr-only ul { margin: 0; padding: 0; list-style: none; }
+  .sr-only button { display: block; width: 100%; padding: 4px 8px; border: 0; background: none; text-align: left; cursor: pointer; }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+
+<canvas id="scene" aria-label="3D card binder. Use the page buttons or arrow keys to turn pages."></canvas>
+
+<header id="top" class="glass">
+  <a href="./">mikinoarchive</a>
+  <span>card binder</span>
+</header>
+
+<nav id="pager" class="glass" aria-label="Binder pages">
+  <button id="prev" type="button" aria-label="Previous page">&lsaquo;</button>
+  <span id="page-label" aria-live="polite">Cover</span>
+  <button id="next" type="button" aria-label="Next page">&rsaquo;</button>
+</nav>
+
+<div id="tip" class="glass" hidden></div>
+<aside id="card-info" class="glass" aria-label="Piece details" hidden></aside>
+<div id="loading">opening the binder&hellip;</div>
+<div id="fallback" hidden>
+  <p>This 3D binder needs WebGL, which this browser doesn&rsquo;t have turned on.</p>
+  <a href="binder-classic.html">Open the classic binder instead</a>
+</div>
+
+<div class="sr-only">
+  <h1>mikinoarchive card binder</h1>
+  <p>Every piece in stock. Choose one to see it up close.</p>
+  <ul id="sr-list"></ul>
+</div>
+
+<noscript><p style="padding:24px;text-align:center"><a href="binder-classic.html" style="color:#d8b06a">Open the classic binder</a></p></noscript>
+
+<script src="binder/items.js"></script>
+<script type="module">
+import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const items = window.BINDER_ITEMS || [];
+const SHOP_URL = 'https://depop.com/mikinoarchivejp';
+const $ = (id) => document.getElementById(id);
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const pad = (n) => String(n).padStart(3, '0');
+const title = (it) => it.name || it.brand || (it.origin ? 'Made in ' + it.origin : '') || (it.type ? it.type[0].toUpperCase() + it.type.slice(1) : '') || 'Archive piece';
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const easeInOut = (t) => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+
+/* ---------- Binder dimensions (scene units ≈ cm) ---------- */
+const CW = 6.3, CH = 8.8, GAP = 0.45, COLS = 3, ROWS = 3, PER = COLS * ROWS;
+const SPINE = 1.6;                  // half the spine width
+const X0 = SPINE + 0.3;             // inner edge of a page, measured from the spine centre
+const RING_M = 1.5;                 // room for the ring holes before the first column
+const PW = RING_M + COLS * CW + (COLS - 1) * GAP + 0.9;
+const PH = ROWS * CH + (ROWS - 1) * GAP + 1.8;
+const LT = 0.05;                    // page thickness
+const STEP = 0.1;                   // spacing between stacked pages
+const BW = PW + 0.9, BH = PH + 1.4, BT = 0.42;  // cover boards
+
+const N = items.length;
+const PAGES = Math.max(1, Math.ceil(N / PER));
+const LEAVES = Math.ceil(PAGES / 2);
+const MAX_VIEW = PAGES % 2 === 0 ? LEAVES + 1 : LEAVES;
+
+const baseY = BT + 0.06 + LT / 2;                       // centre of the lowest page
+const pivotY = baseY + (LEAVES - 1) * STEP / 2;         // shared hinge height for every page
+const coverClosedY = baseY + (LEAVES - 1) * STEP + LT / 2 + 0.06 + BT / 2;
+const coverOpenY = BT / 2;
+const coverPivotY = (coverClosedY + coverOpenY) / 2;
+
+const colX = (c) => X0 + RING_M + CW / 2 + c * (CW + GAP);
+const rowZ = (r) => -PH / 2 + 0.9 + CH / 2 + r * (CH + GAP);
+
+/* ---------- Renderer, scene, camera ---------- */
+const canvas = $('scene');
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+} catch (err) {
+  $('loading').hidden = true;
+  $('fallback').hidden = false;
+  throw err;
+}
+const isSmall = Math.min(window.innerWidth, window.innerHeight) < 600;
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setSize(window.innerWidth, window.innerHeight, false);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const maxAniso = renderer.capabilities.getMaxAnisotropy();
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1b120c);
+scene.fog = new THREE.Fog(0x1b120c, 110, 260);
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.45;
+
+const camera = new THREE.PerspectiveCamera(32, window.innerWidth / window.innerHeight, 0.5, 600);
+scene.add(camera);
+
+scene.add(new THREE.HemisphereLight(0xfff1dc, 0x2a1a10, 0.9));
+const sun = new THREE.DirectionalLight(0xfff0d8, 2.4);
+sun.position.set(-16, 42, 20);
+sun.castShadow = true;
+sun.shadow.mapSize.set(isSmall ? 1024 : 2048, isSmall ? 1024 : 2048);
+Object.assign(sun.shadow.camera, { left: -42, right: 42, top: 32, bottom: -32, near: 5, far: 120 });
+sun.shadow.bias = -0.0004;
+sun.shadow.normalBias = 0.03;
+scene.add(sun);
+const fill = new THREE.PointLight(0xfff4e6, 0.5, 0, 0);
+camera.add(fill);
+
+/* ---------- Canvas-drawn textures ---------- */
+function canvasTexture(canvasEl, repeat) {
+  const t = new THREE.CanvasTexture(canvasEl);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = maxAniso;
+  if (repeat) {
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(repeat, repeat);
+  }
+  return t;
+}
+function makeCanvas(w, h) {
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  return [c, c.getContext('2d')];
+}
+function speckle(ctx, w, h, count, dark, light) {
+  for (let i = 0; i < count; i++) {
+    ctx.fillStyle = Math.random() < .5 ? dark : light;
+    ctx.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 2, 1 + Math.random() * 2);
+  }
+}
+function fitText(ctx, text, maxW) {
+  if (ctx.measureText(text).width <= maxW) return text;
+  let t = text;
+  while (t.length > 1 && ctx.measureText(t + '…').width > maxW) t = t.slice(0, -1);
+  return t + '…';
+}
+
+function woodTexture() {
+  const [c, x] = makeCanvas(1024, 1024);
+  const g = x.createLinearGradient(0, 0, 0, 1024);
+  g.addColorStop(0, '#5b3a24');
+  g.addColorStop(.5, '#664229');
+  g.addColorStop(1, '#55361f');
+  x.fillStyle = g;
+  x.fillRect(0, 0, 1024, 1024);
+  for (let i = 0; i < 260; i++) {
+    const y0 = Math.random() * 1024, amp = 2 + Math.random() * 9, freq = .002 + Math.random() * .006, ph = Math.random() * 6;
+    x.strokeStyle = Math.random() < .75 ? `rgba(28,14,6,${.05 + Math.random() * .16})` : `rgba(255,214,170,${.03 + Math.random() * .05})`;
+    x.lineWidth = .6 + Math.random() * 3;
+    x.beginPath();
+    for (let px = 0; px <= 1024; px += 8) {
+      const py = y0 + Math.sin(px * freq + ph) * amp;
+      px === 0 ? x.moveTo(px, py) : x.lineTo(px, py);
+    }
+    x.stroke();
+  }
+  speckle(x, 1024, 1024, 9000, 'rgba(20,10,4,.12)', 'rgba(255,220,180,.05)');
+  return canvasTexture(c, 3);
+}
+
+function leatherTexture() {
+  const [c, x] = makeCanvas(512, 512);
+  x.fillStyle = '#6a1411';
+  x.fillRect(0, 0, 512, 512);
+  speckle(x, 512, 512, 14000, 'rgba(30,4,3,.16)', 'rgba(255,190,170,.05)');
+  return canvasTexture(c, 3);
+}
+
+function coverArt() {
+  const W = 1024, H = Math.round(1024 * BH / BW);
+  const [c, x] = makeCanvas(W, H);
+  x.clearRect(0, 0, W, H);
+  x.strokeStyle = '#d8b06a';
+  x.lineWidth = 5;
+  x.setLineDash([22, 14]);
+  x.strokeRect(46, 46, W - 92, H - 92);
+  x.setLineDash([]);
+  x.fillStyle = '#e2bd76';
+  x.textAlign = 'center';
+  x.font = '170px "Alex Brush"';
+  x.fillText('mikinoarchive', W / 2, H * .5);
+  x.font = 'italic 52px "EB Garamond"';
+  x.fillText('the card binder', W / 2, H * .5 + 90);
+  x.font = '36px "EB Garamond"';
+  x.fillStyle = '#c9a361';
+  x.fillText(`${N} pieces · archive · dallas`, W / 2, H - 120);
+  const t = canvasTexture(c);
+  return t;
+}
+
+function insideCoverArt() {
+  const W = 1024, H = Math.round(1024 * BH / BW);
+  const [c, x] = makeCanvas(W, H);
+  x.fillStyle = '#211d1b';
+  x.fillRect(0, 0, W, H);
+  speckle(x, W, H, 9000, 'rgba(0,0,0,.18)', 'rgba(255,240,220,.03)');
+  x.strokeStyle = 'rgba(216,176,106,.5)';
+  x.lineWidth = 3;
+  x.strokeRect(60, 60, W - 120, H - 120);
+  x.fillStyle = '#e2bd76';
+  x.textAlign = 'center';
+  x.font = '128px "Alex Brush"';
+  x.fillText('mikinoarchive', W / 2, H * .38);
+  x.font = 'italic 46px "EB Garamond"';
+  x.fillStyle = '#d9c9ad';
+  x.fillText('80s–Y2K vintage + modern', W / 2, H * .38 + 90);
+  x.fillText('secondhand and curated', W / 2, H * .38 + 146);
+  x.font = '40px "EB Garamond"';
+  x.fillStyle = '#c9a361';
+  x.fillText(`${N} pieces in stock`, W / 2, H * .66);
+  x.font = 'italic 36px "EB Garamond"';
+  x.fillStyle = '#a99c86';
+  x.fillText('tap any card to take a closer look', W / 2, H * .66 + 64);
+  return canvasTexture(c);
+}
+
+function pageTexture() {
+  const W = 512, H = Math.round(512 * PH / PW);
+  const [c, x] = makeCanvas(W, H);
+  x.fillStyle = '#1f1d1c';
+  x.fillRect(0, 0, W, H);
+  speckle(x, W, H, 5000, 'rgba(0,0,0,.25)', 'rgba(255,255,255,.025)');
+  const holeX = 0.6 / PW * W, r = 0.3 / PW * W;   // hole centre sits 0.6 units in from the page's inner edge
+  for (const z of [-PH * .33, 0, PH * .33]) {
+    const y = (z + PH / 2) / PH * H;
+    x.fillStyle = '#0b0a09';
+    x.beginPath();
+    x.arc(holeX, y, r, 0, Math.PI * 2);
+    x.fill();
+    x.strokeStyle = 'rgba(255,255,255,.12)';
+    x.lineWidth = 1.5;
+    x.stroke();
+  }
+  return canvasTexture(c);
+}
+
+function cardBackArt() {
+  const W = 360, H = 504;
+  const [c, x] = makeCanvas(W, H);
+  const g = x.createLinearGradient(0, 0, W, H);
+  g.addColorStop(0, '#8a1c17');
+  g.addColorStop(1, '#4f0f0c');
+  x.fillStyle = g;
+  x.fillRect(0, 0, W, H);
+  speckle(x, W, H, 3000, 'rgba(0,0,0,.15)', 'rgba(255,200,180,.05)');
+  x.strokeStyle = '#d8b06a';
+  x.lineWidth = 3;
+  x.strokeRect(14, 14, W - 28, H - 28);
+  x.lineWidth = 1;
+  x.strokeRect(22, 22, W - 44, H - 44);
+  x.fillStyle = '#e2bd76';
+  x.textAlign = 'center';
+  x.font = '58px "Alex Brush"';
+  x.fillText('mikinoarchive', W / 2, H / 2 + 6);
+  x.font = 'italic 20px "EB Garamond"';
+  x.fillText('archive · dallas', W / 2, H / 2 + 44);
+  return canvasTexture(c);
+}
+
+function drawCard(ctx, it, img, W, H) {
+  const s = W / 360;
+  const sig = !!it.brand;
+  const g = ctx.createLinearGradient(0, 0, W, H);
+  if (sig) {
+    g.addColorStop(0, '#fffaf0');
+    g.addColorStop(.5, '#f3e2c0');
+    g.addColorStop(1, '#fffaf0');
+  } else {
+    g.addColorStop(0, '#fdfbf6');
+    g.addColorStop(1, '#f6f1e7');
+  }
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = sig ? '#b8944f' : '#af1c17';
+  ctx.lineWidth = 4 * s;
+  ctx.beginPath();
+  ctx.roundRect(7 * s, 7 * s, W - 14 * s, H - 14 * s, 10 * s);
+  ctx.stroke();
+
+  ctx.fillStyle = sig ? '#80622c' : '#af1c17';
+  ctx.textAlign = 'left';
+  ctx.font = `${30 * s}px "Alex Brush"`;
+  ctx.fillText('mikino', 20 * s, 44 * s);
+  ctx.textAlign = 'right';
+  ctx.font = `${21 * s}px "EB Garamond"`;
+  ctx.fillText('No. ' + pad(it.n), W - 20 * s, 41 * s);
+
+  const px = 18 * s, py = 54 * s, pw = W - 36 * s, ph = H - 54 * s - 58 * s;
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(px, py, pw, ph, 4 * s);
+  ctx.clip();
+  ctx.fillStyle = '#e8e4de';
+  ctx.fillRect(px, py, pw, ph);
+  if (img) {
+    const k = Math.max(pw / img.width, ph / img.height);
+    const dw = img.width * k, dh = img.height * k;
+    ctx.drawImage(img, px + (pw - dw) / 2, py + (ph - dh) / 2, dw, dh);
+  }
+  ctx.restore();
+
+  ctx.fillStyle = '#2b2925';
+  let priceW = 0;
+  if (it.price) {
+    ctx.textAlign = 'right';
+    ctx.font = `500 ${25 * s}px "EB Garamond"`;
+    ctx.fillText(it.price, W - 20 * s, H - 22 * s);
+    priceW = ctx.measureText(it.price).width + 12 * s;
+  }
+  ctx.textAlign = 'left';
+  ctx.font = `italic ${23 * s}px "EB Garamond"`;
+  ctx.fillText(fitText(ctx, title(it), W - 40 * s - priceW), 20 * s, H - 22 * s);
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+/* ---------- Build the binder ---------- */
+const table = new THREE.Mesh(
+  new THREE.PlaneGeometry(320, 320),
+  new THREE.MeshStandardMaterial({ map: woodTexture(), roughness: .78, metalness: 0 })
+);
+table.rotation.x = -Math.PI / 2;
+table.receiveShadow = true;
+scene.add(table);
+
+const leatherMat = new THREE.MeshStandardMaterial({ map: leatherTexture(), color: 0x9c6a66, roughness: .72, metalness: 0 });
+const boardGeo = new RoundedBoxGeometry(BW, BT, BH, 3, 0.18);
+
+const backBoard = new THREE.Mesh(boardGeo, leatherMat);
+backBoard.position.set(SPINE + BW / 2, BT / 2, 0);
+backBoard.castShadow = backBoard.receiveShadow = true;
+scene.add(backBoard);
+
+const spine = new THREE.Mesh(new THREE.BoxGeometry(SPINE * 2 + 0.3, BT * 0.85, BH - 0.1), leatherMat);
+spine.position.set(0, BT * 0.425, 0);
+spine.receiveShadow = true;
+scene.add(spine);
+
+const qFront = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0));
+const qBack = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI).multiply(qFront);
+
+// Something that swings around the spine: the front cover or a page.
+class Flipper {
+  constructor(group) {
+    this.group = group;
+    this.angle = 0;
+    this.from = 0;
+    this.to = 0;
+    this.start = 0;
+    this.dur = 1;
+  }
+  set(target, delay) {
+    if (target === this.to) return;
+    this.from = this.angle;
+    this.to = target;
+    this.start = performance.now() + (delay || 0);
+    this.dur = reduceMotion ? 1 : Math.max(260, 820 * Math.abs(target - this.from) / Math.PI);
+  }
+  update(now) {
+    if (this.angle === this.to) return false;
+    const t = clamp((now - this.start) / this.dur, 0, 1);
+    this.angle = t >= 1 ? this.to : this.from + (this.to - this.from) * easeInOut(t);
+    this.group.rotation.z = this.angle;
+    return true;
+  }
+}
+
+// Front cover
+const coverGroup = new THREE.Group();
+coverGroup.position.set(0, coverPivotY, 0);
+scene.add(coverGroup);
+const coverBody = new THREE.Group();
+coverBody.position.set(SPINE + BW / 2, coverClosedY - coverPivotY, 0);
+coverGroup.add(coverBody);
+const coverBoard = new THREE.Mesh(boardGeo, leatherMat);
+coverBoard.castShadow = coverBoard.receiveShadow = true;
+coverBody.add(coverBoard);
+const artGeo = new THREE.PlaneGeometry(BW - 0.4, BH - 0.4);
+const coverTop = new THREE.Mesh(artGeo, new THREE.MeshStandardMaterial({ transparent: true, roughness: .45, metalness: .35 }));
+coverTop.quaternion.copy(qFront);
+coverTop.position.y = BT / 2 + 0.004;
+coverBody.add(coverTop);
+const coverInside = new THREE.Mesh(artGeo, new THREE.MeshStandardMaterial({ roughness: .9 }));
+coverInside.quaternion.copy(qBack);
+coverInside.position.y = -BT / 2 - 0.004;
+coverInside.receiveShadow = true;
+coverBody.add(coverInside);
+const cover = new Flipper(coverGroup);
+
+// Rings
+const ringMat = new THREE.MeshStandardMaterial({ color: 0xd9d2c4, metalness: 1, roughness: .28 });
+const ringGeo = new THREE.TorusGeometry(X0 + 0.6, 0.11, 10, 40, Math.PI);
+const rings = new THREE.Group();
+for (const z of [-PH * .33, 0, PH * .33]) {
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.position.set(0, baseY - 0.3, z);
+  ring.castShadow = true;
+  rings.add(ring);
+}
+scene.add(rings);
+
+// Pages, cards and sleeves
+const pageGeo = new THREE.BoxGeometry(PW, LT, PH);
+const pageMat = new THREE.MeshStandardMaterial({ map: pageTexture(), roughness: .92 });
+const cardGeo = new THREE.PlaneGeometry(CW, CH);
+const sleeveGeo = new THREE.PlaneGeometry(CW + 0.3, CH + 0.3);
+const sleeveMat = new THREE.MeshPhysicalMaterial({
+  color: 0xffffff, transparent: true, opacity: .1, roughness: .12, metalness: 0, clearcoat: 1, clearcoatRoughness: .08, depthWrite: false
+});
+const placeholderMat = new THREE.MeshStandardMaterial({ color: 0xefe8da, roughness: .6 });
+
+const leaves = [];
+const cards = items.map((it, i) => ({ it, i, mesh: null, mat: null, tex: null, loading: false }));
+const pickables = [];
+const blockers = [coverBoard, backBoard];
+
+for (let l = 0; l < LEAVES; l++) {
+  const group = new THREE.Group();
+  group.position.set(0, pivotY, 0);
+  const body = new THREE.Group();
+  body.position.y = baseY + (LEAVES - 1 - l) * STEP - pivotY;
+  group.add(body);
+  const page = new THREE.Mesh(pageGeo, pageMat);
+  page.position.x = X0 + PW / 2;
+  page.castShadow = page.receiveShadow = true;
+  body.add(page);
+  blockers.push(page);
+
+  [[2 * l + 1, false], [2 * l + 2, true]].forEach(([pageNo, back]) => {
+    for (let slot = 0; slot < PER; slot++) {
+      const c = slot % COLS, r = Math.floor(slot / COLS);
+      const x = colX(back ? COLS - 1 - c : c), z = rowZ(r);
+      const ySign = back ? -1 : 1;
+      const sleeve = new THREE.Mesh(sleeveGeo, sleeveMat);
+      sleeve.position.set(x, ySign * (LT / 2 + 0.022), z);
+      sleeve.quaternion.copy(back ? qBack : qFront);
+      sleeve.renderOrder = 2;
+      body.add(sleeve);
+      const idx = (pageNo - 1) * PER + slot;
+      if (idx >= N) continue;
+      const mesh = new THREE.Mesh(cardGeo, placeholderMat);
+      mesh.position.set(x, ySign * (LT / 2 + 0.008), z);
+      mesh.quaternion.copy(back ? qBack : qFront);
+      mesh.receiveShadow = true;
+      mesh.userData.card = idx;
+      body.add(mesh);
+      cards[idx].mesh = mesh;
+      pickables.push(mesh);
+    }
+  });
+
+  scene.add(group);
+  leaves.push(new Flipper(group));
+}
+
+/* ---------- Card textures, loaded only for nearby pages ---------- */
+const pageOfCard = (i) => Math.floor(i / PER) + 1;
+const pagesInView = (v) => (v <= 0 ? [] : v === 1 ? [1] : [2 * v - 2, 2 * v - 1].filter((p) => p <= PAGES));
+const viewOfPage = (p) => (p === 1 ? 1 : Math.floor(p / 2) + 1);
+
+function ensureCard(i) {
+  const st = cards[i];
+  if (st.tex || st.loading) return;
+  st.loading = true;
+  loadImage('binder/thumbs/' + pad(st.it.n) + '.jpg').catch(() => null).then((img) => {
+    if (!st.loading) return;     // evicted while loading
+    const [c, x] = makeCanvas(360, 504);
+    drawCard(x, st.it, img, 360, 504);
+    st.tex = canvasTexture(c);
+    st.mat = new THREE.MeshStandardMaterial({ map: st.tex, roughness: .7, envMapIntensity: .2 });
+    st.mesh.material = st.mat;
+    st.loading = false;
+    needsRender = true;
+  });
+}
+function releaseCard(st) {
+  st.loading = false;
+  if (!st.tex) return;
+  st.mesh.material = placeholderMat;
+  st.mat.dispose();
+  st.tex.dispose();
+  st.mat = st.tex = null;
+}
+function refreshTextures() {
+  const want = new Set([...pagesInView(view - 1), ...pagesInView(view), ...pagesInView(view + 1)]);
+  if (insp) want.add(pageOfCard(insp.i));
+  cards.forEach((st) => {
+    if (want.has(pageOfCard(st.i))) ensureCard(st.i);
+    else releaseCard(st);
+  });
+}
+
+/* ---------- View state and camera ---------- */
+let view = 0;          // 0 = closed, 1 = cover open on page 1, then one spread per step
+let focus = 'right';   // which page a narrow screen is looking at
+let needsRender = true;
+const portrait = () => window.innerWidth / window.innerHeight < 0.85;
+
+const camState = { target: new THREE.Vector3(SPINE + BW / 2, 0, 0), dist: 150, yaw: 0, pitch: .42 };
+const camGoal = { target: new THREE.Vector3(), dist: 80 };
+const user = { yaw: 0, pitch: 0, zoom: 1 };
+
+function frameCamera() {
+  const aspect = window.innerWidth / window.innerHeight;
+  let cx, w, h;
+  if (view === 0) {
+    cx = SPINE + BW / 2; w = BW + 2; h = BH + 2;
+  } else if (portrait()) {
+    cx = (focus === 'left' ? -1 : 1) * (SPINE + BW / 2); w = BW + 1.2; h = BH + 1.2;
+  } else {
+    cx = 0; w = 2 * (SPINE + BW) + 2; h = BH + 2;
+  }
+  const uiPad = 1 + 150 / window.innerHeight;
+  const tanH = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
+  const dist = Math.max((h * uiPad / 2) / tanH, (w / 2) / (tanH * aspect)) * 1.04;
+  camGoal.target.set(cx, 0, 0.6);
+  camGoal.dist = dist;
+  needsRender = true;
+}
+
+function setView(v, newFocus) {
+  v = clamp(v, 0, MAX_VIEW);
+  if (newFocus) focus = newFocus;
+  const old = view;
+  view = v;
+  cover.set(view > 0 ? Math.PI : 0, view < old && view === 0 ? (old - 1) * 90 : 0);
+  const flipping = [];
+  leaves.forEach((leaf, l) => {
+    const target = l <= view - 2 ? Math.PI : 0;
+    if (target !== leaf.to) flipping.push([leaf, target, l]);
+  });
+  if (view < old) flipping.reverse();
+  flipping.forEach(([leaf, target], k) => leaf.set(target, k * 90 + (view > old && old === 0 ? 300 : 0)));
+  frameCamera();
+  refreshTextures();
+  updatePager();
+}
+
+function canNext() {
+  if (view === 0) return true;
+  if (portrait()) {
+    if (focus === 'left') return pagesInView(view).length > 1 || (view === 1);
+    return view < MAX_VIEW;
+  }
+  return view < MAX_VIEW;
+}
+function canPrev() { return view > 0; }
+
+function next() {
+  if (!canNext()) return;
+  if (view === 0) return setView(1, 'right');
+  if (portrait()) {
+    if (focus === 'left') { focus = 'right'; frameCamera(); updatePager(); return; }
+    return setView(view + 1, 'left');
+  }
+  setView(view + 1);
+}
+function prev() {
+  if (!canPrev()) return;
+  if (portrait() && focus === 'right' && view > 1) { focus = 'left'; frameCamera(); updatePager(); return; }
+  setView(view - 1, 'right');
+}
+
+function updatePager() {
+  let label;
+  if (view === 0) label = 'Cover';
+  else if (portrait()) {
+    if (focus === 'left') label = view === 1 ? 'Inside cover' : `Page ${2 * view - 2} of ${PAGES}`;
+    else label = `Page ${2 * view - 1} of ${PAGES}`;
+  } else {
+    const ps = pagesInView(view);
+    label = ps.length === 2 ? `Pages ${ps[0]}–${ps[1]} of ${PAGES}` : `Page ${ps[0]} of ${PAGES}`;
+  }
+  $('page-label').textContent = label;
+  $('prev').disabled = !canPrev();
+  $('next').disabled = !canNext();
+}
+
+/* ---------- Close-up view of one card ---------- */
+let insp = null;
+const backMat = new THREE.MeshBasicMaterial({ toneMapped: false });
+
+function inspectLayout() {
+  const stack = window.innerWidth < 760 || window.innerWidth / window.innerHeight < 0.9;
+  document.body.dataset.inspect = stack ? 'stack' : 'side';
+  const tanH = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
+  const frac = stack ? 0.42 : 0.72;
+  const D = CH / (frac * 2 * tanH);
+  const visH = 2 * D * tanH, visW = visH * camera.aspect;
+  const pos = new THREE.Vector3(0, 0, -D);
+  if (stack) pos.y = visH * 0.19;
+  else pos.x = -(340 / 2 + 8) / window.innerWidth * visW;
+  return pos;
+}
+
+function cardPoseInCamera(st) {
+  const wp = new THREE.Vector3(), wq = new THREE.Quaternion();
+  st.mesh.getWorldPosition(wp);
+  st.mesh.getWorldQuaternion(wq);
+  camera.updateMatrixWorld();
+  const pos = camera.worldToLocal(wp);
+  const quat = camera.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(wq);
+  return { pos, quat };
+}
+
+function loadHiRes(entry) {
+  const st = cards[entry.i];
+  loadImage('binder/cards/' + pad(st.it.n) + '.jpg').catch(() => null).then((img) => {
+    if (insp !== entry || entry.i !== st.i) return;
+    const [c, x] = makeCanvas(720, 1008);
+    drawCard(x, st.it, img, 720, 1008);
+    if (entry.tex) entry.tex.dispose();
+    entry.tex = canvasTexture(c);
+    entry.front.material.map = entry.tex;
+    entry.front.material.color.set(0xffffff);
+    entry.front.material.needsUpdate = true;
+    needsRender = true;
+  });
+}
+
+function openInspect(i) {
+  if (insp && insp.phase === 'out') return;
+  if (insp) return swapInspect(i);
+  const st = cards[i];
+  ensureCard(i);
+  const group = new THREE.Group();
+  const front = new THREE.Mesh(cardGeo, new THREE.MeshBasicMaterial({ map: st.tex || null, color: st.tex ? 0xffffff : 0xefe8da, toneMapped: false }));
+  const back = new THREE.Mesh(cardGeo, backMat);
+  back.rotation.y = Math.PI;
+  front.userData.inspect = back.userData.inspect = true;
+  group.add(front, back);
+  const pose = cardPoseInCamera(st);
+  group.position.copy(pose.pos);
+  group.quaternion.copy(pose.quat);
+  camera.add(group);
+  st.mesh.visible = false;
+  insp = { i, group, front, back, tex: null, phase: 'in', t0: performance.now(), from: pose, flip: 0, flipTo: 0, tiltX: 0, tiltY: 0 };
+  loadHiRes(insp);
+  showInfo(i);
+  $('tip').hidden = true;
+  needsRender = true;
+}
+
+function swapInspect(i) {
+  const old = cards[insp.i];
+  old.mesh.visible = true;
+  const st = cards[i];
+  insp.i = i;
+  st.mesh.visible = false;
+  ensureCard(i);
+  insp.front.material.map = st.tex || null;
+  insp.front.material.color.set(st.tex ? 0xffffff : 0xefe8da);
+  insp.front.material.needsUpdate = true;
+  insp.flipTo = Math.round(insp.flipTo / (2 * Math.PI)) * 2 * Math.PI + 2 * Math.PI;
+  loadHiRes(insp);
+  showInfo(i);
+  const v = viewOfPage(pageOfCard(i));
+  const f = pageOfCard(i) % 2 === 1 ? 'right' : 'left';
+  if (v !== view) setView(v, f);
+  else if (portrait() && f !== focus) { focus = f; frameCamera(); updatePager(); }
+  needsRender = true;
+}
+
+function closeInspect() {
+  if (!insp || insp.phase === 'out') return;
+  insp.phase = 'out';
+  insp.t0 = performance.now();
+  insp.outFrom = { pos: insp.group.position.clone(), quat: insp.group.quaternion.clone() };
+  $('card-info').hidden = true;
+  canvas.focus({ preventScroll: true });
+  needsRender = true;
+}
+
+function updateInspect(now) {
+  if (!insp) return false;
+  const g = insp.group;
+  const target = inspectLayout();
+  insp.flip += (insp.flipTo - insp.flip) * (reduceMotion ? 1 : 0.14);
+  if (Math.abs(insp.flipTo - insp.flip) < 0.001) insp.flip = insp.flipTo;
+  const restQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(insp.tiltX, insp.flip + insp.tiltY, 0));
+  const dur = reduceMotion ? 1 : 620;
+  if (insp.phase === 'in') {
+    const t = clamp((now - insp.t0) / dur, 0, 1), e = easeOut(t);
+    g.position.lerpVectors(insp.from.pos, target, e);
+    g.position.z += Math.sin(e * Math.PI) * 3;
+    g.quaternion.slerpQuaternions(insp.from.quat, restQ, e);
+    if (t >= 1) insp.phase = 'shown';
+  } else if (insp.phase === 'shown') {
+    g.position.lerp(target, 0.2);
+    g.quaternion.slerp(restQ, 0.18);
+  } else {
+    const st = cards[insp.i];
+    const home = cardPoseInCamera(st);
+    const t = clamp((now - insp.t0) / (reduceMotion ? 1 : 520), 0, 1), e = easeInOut(t);
+    g.position.lerpVectors(insp.outFrom.pos, home.pos, e);
+    g.quaternion.slerpQuaternions(insp.outFrom.quat, home.quat, e);
+    if (t >= 1) {
+      camera.remove(g);
+      insp.front.material.dispose();
+      if (insp.tex) insp.tex.dispose();
+      st.mesh.visible = true;
+      insp = null;
+      refreshTextures();
+    }
+  }
+  return true;
+}
+
+function showInfo(i) {
+  const it = items[i];
+  const rows = [['Brand', it.brand], ['Made in', it.origin], ['Type', it.type], ['Color', it.color], ['Size', it.size], ['Condition', it.cond]]
+    .filter((r) => r[1]);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const box = $('card-info');
+  box.innerHTML =
+    `<button class="close" type="button" aria-label="Close">&times;</button>` +
+    `<div class="no">No. ${pad(it.n)}</div>` +
+    `<h2>${esc(title(it))}</h2>` +
+    (it.price ? `<div class="price">${esc(it.price)}</div>` : '') +
+    (rows.length ? `<dl>${rows.map((r) => `<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join('')}</dl>` : '') +
+    `<a class="shop" href="${esc(it.url || SHOP_URL)}" target="_blank" rel="noopener">${it.url ? 'View on Depop' : 'Shop mikinoarchive on Depop'}</a>` +
+    `<p class="hint">Tap the card to turn it over.</p>` +
+    `<div class="card-nav"><button type="button" data-step="-1">&lsaquo; Previous</button><button type="button" data-step="1">Next &rsaquo;</button></div>`;
+  box.hidden = false;
+  box.querySelector('.close').addEventListener('click', closeInspect);
+  box.querySelectorAll('[data-step]').forEach((b) => b.addEventListener('click', () => {
+    openInspect((insp.i + Number(b.dataset.step) + N) % N);
+  }));
+}
+
+/* ---------- Pointer, wheel and keyboard ---------- */
+const raycaster = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+const pointers = new Map();
+let down = null, pinch = null;
+
+function pick(clientX, clientY) {
+  ndc.set(clientX / window.innerWidth * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+  if (insp) {
+    const hit = raycaster.intersectObjects([insp.front, insp.back], false)[0];
+    return hit ? { inspect: true } : null;
+  }
+  const hit = raycaster.intersectObjects([...pickables, ...blockers], false).find((h) => h.object.visible);
+  if (!hit) return null;
+  if (hit.object.userData.card !== undefined) return { card: hit.object.userData.card };
+  if (hit.object === coverBoard && view === 0) return { cover: true };
+  return null;
+}
+
+function showTip(x, y, i) {
+  const tip = $('tip');
+  if (i === null) { tip.hidden = true; return; }
+  const it = items[i];
+  tip.textContent = `No. ${pad(it.n)} · ${title(it)}${it.price ? ' · ' + it.price : ''}`;
+  tip.hidden = false;
+  const r = tip.getBoundingClientRect();
+  tip.style.transform = `translate(${Math.min(x + 14, window.innerWidth - r.width - 8)}px, ${Math.max(8, y - 34)}px)`;
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+  canvas.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pointers.size === 1) {
+    down = { x: e.clientX, y: e.clientY, t: performance.now(), yaw: user.yaw, pitch: user.pitch, type: e.pointerType };
+  } else if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), zoom: user.zoom };
+    down = null;
+  }
+});
+
+canvas.addEventListener('pointermove', (e) => {
+  if (pointers.has(e.pointerId)) pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pinch && pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    user.zoom = clamp(pinch.zoom * pinch.d / Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), 0.55, 1.5);
+    needsRender = true;
+    return;
+  }
+  if (down && down.type === 'mouse' && e.buttons) {
+    const dx = e.clientX - down.x, dy = e.clientY - down.y;
+    if (Math.hypot(dx, dy) > 6 && !insp) {
+      user.yaw = clamp(down.yaw - dx * 0.003, -0.4, 0.4);
+      user.pitch = clamp(down.pitch - dy * 0.0025, -0.3, 0.35);
+      $('tip').hidden = true;
+      needsRender = true;
+    }
+    return;
+  }
+  if (insp) {
+    insp.tiltY = (e.clientX / window.innerWidth - 0.5) * 0.35;
+    insp.tiltX = (e.clientY / window.innerHeight - 0.5) * 0.28;
+    needsRender = true;
+    return;
+  }
+  if (e.pointerType === 'mouse') {
+    const hit = pick(e.clientX, e.clientY);
+    canvas.style.cursor = hit ? 'pointer' : 'grab';
+    showTip(e.clientX, e.clientY, hit && hit.card !== undefined ? hit.card : null);
+  }
+});
+
+function endPointer(e) {
+  pointers.delete(e.pointerId);
+  if (pointers.size < 2) pinch = null;
+  if (!down || e.type === 'pointercancel') { if (!pointers.size) down = null; return; }
+  const dx = e.clientX - down.x, dy = e.clientY - down.y, dt = performance.now() - down.t;
+  const d = down;
+  down = null;
+  if (Math.hypot(dx, dy) < 8 && dt < 600) {
+    const hit = pick(e.clientX, e.clientY);
+    if (insp) {
+      if (hit && hit.inspect) { insp.flipTo += Math.PI; needsRender = true; }
+      else closeInspect();
+    } else if (hit && hit.card !== undefined) openInspect(hit.card);
+    else if (hit && hit.cover) next();
+    return;
+  }
+  if (d.type !== 'mouse' && !insp && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.3) {
+    dx < 0 ? next() : prev();
+  }
+}
+canvas.addEventListener('pointerup', endPointer);
+canvas.addEventListener('pointercancel', endPointer);
+canvas.addEventListener('pointerleave', () => { $('tip').hidden = true; });
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  if (insp) return;
+  user.zoom = clamp(user.zoom * Math.exp(e.deltaY * 0.0012), 0.55, 1.5);
+  needsRender = true;
+}, { passive: false });
+canvas.addEventListener('dblclick', () => { user.yaw = user.pitch = 0; user.zoom = 1; needsRender = true; });
+
+$('next').addEventListener('click', () => { if (insp) closeInspect(); next(); });
+$('prev').addEventListener('click', () => { if (insp) closeInspect(); prev(); });
+
+document.addEventListener('keydown', (e) => {
+  if (e.target.closest && e.target.closest('input, textarea')) return;
+  if (e.key === 'Escape' && insp) { closeInspect(); return; }
+  if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+  const step = e.key === 'ArrowRight' ? 1 : -1;
+  if (insp) openInspect((insp.i + step + N) % N);
+  else step > 0 ? next() : prev();
+});
+
+function goToCard(i) {
+  const p = pageOfCard(i), v = viewOfPage(p), f = p % 2 === 1 ? 'right' : 'left';
+  const moving = v !== view || (portrait() && f !== focus);
+  if (insp) return openInspect(i);
+  if (v !== view) setView(v, f);
+  else if (portrait() && f !== focus) { focus = f; frameCamera(); updatePager(); }
+  setTimeout(() => openInspect(i), moving && !reduceMotion ? 900 : 0);
+}
+
+// Keyboard and screen-reader list of every piece
+const srList = $('sr-list');
+items.forEach((it, i) => {
+  const li = document.createElement('li');
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.textContent = `No. ${pad(it.n)}: ${title(it)}${it.price ? ', ' + it.price : ''}`;
+  b.addEventListener('click', () => goToCard(i));
+  li.appendChild(b);
+  srList.appendChild(li);
+});
+
+window.addEventListener('resize', () => {
+  renderer.setSize(window.innerWidth, window.innerHeight, false);
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  frameCamera();
+  updatePager();
+  needsRender = true;
+});
+
+/* ---------- Main loop ---------- */
+let last = performance.now();
+const camDir = new THREE.Vector3();
+function tick(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  let moving = false;
+  if (cover.update(now)) moving = true;
+  leaves.forEach((leaf) => { if (leaf.update(now)) moving = true; });
+  rings.visible = cover.angle > 1.1;
+
+  const k = reduceMotion ? 1 : 1 - Math.exp(-dt * 5);
+  const before = camState.target.x + camState.dist + camState.yaw + camState.pitch;
+  camState.target.lerp(camGoal.target, k);
+  camState.dist += (camGoal.dist * user.zoom - camState.dist) * k;
+  camState.yaw += (user.yaw - camState.yaw) * k;
+  camState.pitch += (0.42 + user.pitch - camState.pitch) * k;
+  const after = camState.target.x + camState.dist + camState.yaw + camState.pitch;
+  if (Math.abs(after - before) > 1e-4) moving = true;
+  camDir.set(Math.sin(camState.yaw) * Math.sin(camState.pitch), Math.cos(camState.pitch), Math.cos(camState.yaw) * Math.sin(camState.pitch));
+  camera.position.copy(camState.target).addScaledVector(camDir, camState.dist);
+  camera.lookAt(camState.target);
+
+  if (updateInspect(now)) moving = true;
+
+  if (moving || needsRender) {
+    renderer.render(scene, camera);
+    needsRender = false;
+  }
+}
+
+/* ---------- Start ---------- */
+async function start() {
+  const fonts = Promise.all([
+    document.fonts.load('40px "Alex Brush"'),
+    document.fonts.load('20px "EB Garamond"'),
+    document.fonts.load('italic 20px "EB Garamond"'),
+    document.fonts.load('500 20px "EB Garamond"'),
+  ]);
+  await Promise.race([fonts, new Promise((r) => setTimeout(r, 2500))]);
+  coverTop.material.map = coverArt();
+  coverTop.material.needsUpdate = true;
+  coverInside.material.map = insideCoverArt();
+  coverInside.material.needsUpdate = true;
+  backMat.map = cardBackArt();
+  backMat.needsUpdate = true;
+
+  const hash = decodeURIComponent(location.hash.slice(1));
+  const linked = /^\d+$/.test(hash) ? items.findIndex((it) => it.n === Number(hash)) : -1;
+  frameCamera();
+  if (linked >= 0) {
+    const p = pageOfCard(linked);
+    setView(viewOfPage(p), p % 2 === 1 ? 'right' : 'left');
+    setTimeout(() => openInspect(linked), reduceMotion ? 0 : 1200);
+  } else if (hash === 'open') {
+    setView(1, 'right');
+  } else {
+    setView(0);
+  }
+  renderer.setAnimationLoop(tick);
+  requestAnimationFrame(() => $('loading').classList.add('done'));
+}
+start();
+
+// Small hook for automated checks.
+window.__binder = {
+  state: () => ({ view, focus, maxView: MAX_VIEW, pages: PAGES, inspecting: insp ? items[insp.i].n : null, label: $('page-label').textContent,
+    texturesLoaded: cards.filter((c) => c.tex).length }),
+  next, prev, goToCard, closeInspect,
+
+};
+</script>
+</body>
+</html>
