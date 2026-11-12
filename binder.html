@@ -431,99 +431,61 @@ function drawLogo(ctx, color, x, y, h, align) {
   return 0;
 }
 
-// Four-point "twinkle" star, Y2K style.
-function sparkle(x, cx, cy, r, color) {
-  const k = r * 0.16;
-  x.save();
-  x.fillStyle = color;
-  x.beginPath();
-  x.moveTo(cx, cy - r);
-  x.quadraticCurveTo(cx + k, cy - k, cx + r, cy);
-  x.quadraticCurveTo(cx + k, cy + k, cx, cy + r);
-  x.quadraticCurveTo(cx - k, cy + k, cx - r, cy);
-  x.quadraticCurveTo(cx - k, cy - k, cx, cy - r);
-  x.fill();
-  x.restore();
-}
-
-// A tapering fairy-wand stroke along a quadratic curve, with twinkles trailing behind it.
-function fairyTrail(x, p0, p1, p2, width, color, sparkles) {
-  const pt = (t) => [
-    (1 - t) * (1 - t) * p0[0] + 2 * (1 - t) * t * p1[0] + t * t * p2[0],
-    (1 - t) * (1 - t) * p0[1] + 2 * (1 - t) * t * p1[1] + t * t * p2[1],
-  ];
-  const n = 80, top = [], bot = [];
-  for (let i = 0; i <= n; i++) {
-    const t = i / n, [px, py] = pt(t), [qx, qy] = pt(Math.min(1, t + 0.01)), [ox, oy] = pt(Math.max(0, t - 0.01));
-    const dx = qx - ox, dy = qy - oy, len = Math.hypot(dx, dy) || 1;
-    const w = width * Math.pow(t, 1.4) * (1 - 0.35 * Math.pow(t, 6));
-    top.push([px - dy / len * w, py + dx / len * w]);
-    bot.push([px + dy / len * w, py - dx / len * w]);
-  }
-  x.save();
-  x.fillStyle = color;
-  x.beginPath();
-  top.forEach(([a, b], i) => (i ? x.lineTo(a, b) : x.moveTo(a, b)));
-  bot.reverse().forEach(([a, b]) => x.lineTo(a, b));
-  x.closePath();
-  x.fill();
-  x.restore();
-  for (const [t, off, r] of sparkles) {
-    const [px, py] = pt(t);
-    sparkle(x, px, py + off, r, color);
-  }
-  const [ex, ey] = pt(1);
-  sparkle(x, ex, ey, width * 4.2, color);
-}
-
-// Thin double frame with twinkles sitting on the corners.
-function sparkleFrame(x, W, H, inset, color, big) {
+// Classic double-rule border around the edge of a board.
+function ruleFrame(x, W, H, inset, color) {
   x.save();
   x.strokeStyle = color;
-  x.lineWidth = 3;
+  x.lineWidth = 2.5;
+  x.strokeRect(inset, inset, W - 2 * inset, H - 2 * inset);
+  x.lineWidth = 1;
+  x.strokeRect(inset + 12, inset + 12, W - 2 * inset - 24, H - 2 * inset - 24);
+  x.restore();
+}
+
+// Vintage cameo oval (bold outer line, hairline inside), like an old boutique label.
+function cameo(x, cx, cy, rx, ry, color) {
+  x.save();
+  x.strokeStyle = color;
+  x.lineWidth = 5;
   x.beginPath();
-  x.roundRect(inset, inset, W - 2 * inset, H - 2 * inset, 34);
+  x.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
   x.stroke();
-  x.lineWidth = 1.2;
+  x.lineWidth = 1.5;
   x.beginPath();
-  x.roundRect(inset + 14, inset + 14, W - 2 * inset - 28, H - 2 * inset - 28, 24);
+  x.ellipse(cx, cy, rx - 16, ry - 16, 0, 0, Math.PI * 2);
   x.stroke();
   x.restore();
-  const corners = [[inset + 7, inset + 7, 1, 1], [W - inset - 7, inset + 7, -1, 1], [inset + 7, H - inset - 7, 1, -1], [W - inset - 7, H - inset - 7, -1, -1]];
-  for (const [cx, cy, sx, sy] of corners) {
-    x.save();
-    x.globalCompositeOperation = 'destination-out';     // gap in the frame lines behind each star
-    x.beginPath();
-    x.arc(cx, cy, big * 0.62, 0, Math.PI * 2);
-    x.fill();
-    x.restore();
-    sparkle(x, cx, cy, big, color);
-    sparkle(x, cx + sx * big * 1.25, cy + sy * big * 0.35, big * 0.32, color);
-    sparkle(x, cx + sx * big * 0.4, cy + sy * big * 1.3, big * 0.22, color);
-  }
+}
+
+// Centred caps with wide letter spacing (the spacing is added after each letter, so nudge right).
+function spacedCaps(x, text, cx, y, size, spacing, color) {
+  x.save();
+  x.fillStyle = color;
+  x.textAlign = 'center';
+  x.font = `500 ${size}px "EB Garamond"`;
+  x.letterSpacing = spacing + 'px';
+  x.fillText(text, cx + spacing / 2, y);
+  x.restore();
 }
 
 function coverArt() {
   const W = 1024, H = Math.round(1024 * BH / BW);
   const [c, x] = makeCanvas(W, H);
   x.clearRect(0, 0, W, H);
-  sparkleFrame(x, W, H, 52, BRAND_RED, 30);
-  const ly = H * .46;
-  fairyTrail(x, [W * .17, ly + 70], [W * .46, ly - 260], [W * .83, ly - 150], 5,
-    BRAND_RED, [[.3, -26, 9], [.45, 30, 6], [.58, -22, 12], [.7, 26, 7], [.8, -18, 5]]);
-  drawLogo(x, BRAND_RED, W / 2, ly, 250);
-  x.fillStyle = BRAND_RED;
-  x.textAlign = 'center';
-  x.font = '500 40px "EB Garamond"';
-  x.letterSpacing = '22px';
-  x.fillText('ARCHIVE', W / 2 + 11, ly + 160);
-  x.letterSpacing = '0px';
-  x.font = 'italic 46px "EB Garamond"';
+  ruleFrame(x, W, H, 52, BRAND_RED);
+  const cy = H * .44;
+  cameo(x, W / 2, cy, 384, 250, BRAND_RED);
+  drawLogo(x, BRAND_RED, W / 2, cy - 30, 230);
+  spacedCaps(x, 'ARCHIVE', W / 2, cy + 112, 38, 22, BRAND_RED);
+  const ty = cy + 250 + 110;
   x.fillStyle = '#4a4640';
-  x.fillText('the card binder', W / 2, ly + 236);
-  x.font = '34px "EB Garamond"';
-  x.fillStyle = '#8a8580';
-  x.fillText(`${N} pieces · dallas`, W / 2, H - 130);
+  x.textAlign = 'center';
+  x.font = 'italic 46px "EB Garamond"';
+  x.fillText('the card binder', W / 2, ty);
+  x.fillStyle = BRAND_RED;
+  x.fillRect(W / 2 - 250, ty - 15, 70, 2);
+  x.fillRect(W / 2 + 180, ty - 15, 70, 2);
+  spacedCaps(x, `${N} PIECES · DALLAS`, W / 2, H - 120, 26, 8, '#8a8580');
   return canvasTexture(c);
 }
 
@@ -533,28 +495,21 @@ function insideCoverArt() {
   x.fillStyle = '#fbfaf8';
   x.fillRect(0, 0, W, H);
   speckle(x, W, H, 6000, 'rgba(60,40,30,.03)', 'rgba(255,255,255,.4)');
-  sparkleFrame(x, W, H, 60, BRAND_RED, 22);
-  x.fillStyle = '#fbfaf8';                                 // refill the gaps cut behind the corner stars
-  x.globalCompositeOperation = 'destination-over';
-  x.fillRect(0, 0, W, H);
-  x.globalCompositeOperation = 'source-over';
-  drawLogo(x, BRAND_RED, W / 2, H * .33, 200);
-  x.fillStyle = BRAND_RED;
+  ruleFrame(x, W, H, 60, BRAND_RED);
+  const cy = H * .34;
+  cameo(x, W / 2, cy, 330, 214, BRAND_RED);
+  drawLogo(x, BRAND_RED, W / 2, cy - 26, 196);
+  spacedCaps(x, 'ARCHIVE', W / 2, cy + 98, 32, 18, BRAND_RED);
   x.textAlign = 'center';
-  x.font = '500 34px "EB Garamond"';
-  x.letterSpacing = '18px';
-  x.fillText('ARCHIVE', W / 2 + 9, H * .33 + 130);
-  x.letterSpacing = '0px';
   x.font = 'italic 46px "EB Garamond"';
   x.fillStyle = '#4a4640';
-  x.fillText('80s–Y2K vintage + modern', W / 2, H * .33 + 220);
-  x.fillText('secondhand and curated', W / 2, H * .33 + 276);
+  x.fillText('y2k, secondhand, vintage', W / 2, cy + 214 + 100);
   x.font = '40px "EB Garamond"';
   x.fillStyle = '#2b2925';
-  x.fillText(`${N} pieces in stock`, W / 2, H * .66);
+  x.fillText(`${N} pieces in stock`, W / 2, H * .7);
   x.font = 'italic 36px "EB Garamond"';
   x.fillStyle = '#8a8580';
-  x.fillText('tap any card to take a closer look', W / 2, H * .66 + 64);
+  x.fillText('tap any card to take a closer look', W / 2, H * .7 + 64);
   return canvasTexture(c);
 }
 
@@ -599,7 +554,6 @@ function cardBackArt() {
   x.letterSpacing = '8px';
   x.fillText('ARCHIVE', W / 2 + 4, H / 2 + 50);
   x.letterSpacing = '0px';
-  sparkle(x, W / 2, H / 2 - 82, 12, '#e2bd76');
   return canvasTexture(c);
 }
 
