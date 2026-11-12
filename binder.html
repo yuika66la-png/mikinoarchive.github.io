@@ -25,7 +25,7 @@
     height: 100%;
     margin: 0;
     overflow: hidden;
-    background: #0b0a0a;
+    background: #f3f2f0;
     color: var(--ink);
     font: 16px/1.4 'EB Garamond', Georgia, serif;
   }
@@ -317,8 +317,8 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const maxAniso = renderer.capabilities.getMaxAnisotropy();
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0b0a0a);
-scene.fog = new THREE.Fog(0x0b0a0a, 80, 190);
+scene.background = new THREE.Color(0xf3f2f0);
+scene.fog = new THREE.Fog(0xf3f2f0, 90, 210);
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.35;
@@ -326,7 +326,7 @@ scene.environmentIntensity = 0.35;
 const camera = new THREE.PerspectiveCamera(32, window.innerWidth / window.innerHeight, 0.5, 600);
 scene.add(camera);
 
-scene.add(new THREE.HemisphereLight(0xfff6ea, 0x141010, 0.45));
+scene.add(new THREE.HemisphereLight(0xffffff, 0xdedad6, 0.9));
 const sun = new THREE.DirectionalLight(0xfff4e6, 1.5);
 sun.position.set(-16, 42, 20);
 sun.castShadow = true;
@@ -372,33 +372,14 @@ function fitText(ctx, text, maxW) {
   return t + '…';
 }
 
-// Matte charcoal surface with a faint tone-on-tone "mikino" monogram.
+// Clean white matte surface with a barely-there paper grain.
 function surfaceTexture() {
-  const S = 1024;
+  const S = 512;
   const [c, x] = makeCanvas(S, S);
-  x.fillStyle = '#151314';
+  x.fillStyle = '#ffffff';
   x.fillRect(0, 0, S, S);
-  speckle(x, S, S, 26000, 'rgba(0,0,0,.35)', 'rgba(255,255,255,.035)');
-  x.save();
-  x.fillStyle = 'rgba(232,210,170,.055)';
-  x.textAlign = 'center';
-  x.textBaseline = 'middle';
-  const step = 256;
-  for (let row = 0; row < 5; row++) {
-    for (let col = 0; col < 5; col++) {
-      const cx = col * step + (row % 2 ? step / 2 : 0), cy = row * step;
-      x.save();
-      x.translate(cx, cy);
-      x.rotate(-0.35);
-      x.font = '64px "Alex Brush"';
-      x.fillText('mikino', 0, 0);
-      x.restore();
-      x.font = '14px "EB Garamond"';
-      x.fillText('✦', cx + step / 2, cy + step / 2);
-    }
-  }
-  x.restore();
-  return canvasTexture(c, 7);
+  speckle(x, S, S, 9000, 'rgba(0,0,0,.025)', 'rgba(0,0,0,.012)');
+  return canvasTexture(c, 10);
 }
 
 function leatherTexture() {
