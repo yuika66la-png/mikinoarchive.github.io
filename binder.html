@@ -25,7 +25,7 @@
     height: 100%;
     margin: 0;
     overflow: hidden;
-    background: #f3f2f0;
+    background: #a51b16;
     color: var(--ink);
     font: 16px/1.4 'EB Garamond', Georgia, serif;
   }
@@ -317,8 +317,9 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const maxAniso = renderer.capabilities.getMaxAnisotropy();
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xf3f2f0);
-scene.fog = new THREE.Fog(0xf3f2f0, 90, 210);
+const BG = 0xa51b16;
+scene.background = new THREE.Color(BG);
+scene.fog = new THREE.Fog(BG, 200, 420);
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.35;
@@ -376,37 +377,40 @@ function fitText(ctx, text, maxW) {
 function surfaceTexture() {
   const S = 512;
   const [c, x] = makeCanvas(S, S);
-  x.fillStyle = '#ffffff';
+  x.fillStyle = BRAND_RED;
   x.fillRect(0, 0, S, S);
-  speckle(x, S, S, 9000, 'rgba(0,0,0,.025)', 'rgba(0,0,0,.012)');
+  speckle(x, S, S, 9000, 'rgba(0,0,0,.05)', 'rgba(255,255,255,.025)');
   return canvasTexture(c, 10);
 }
 
 function leatherTexture() {
   const [c, x] = makeCanvas(512, 512);
-  x.fillStyle = '#6a1411';
+  x.fillStyle = '#f7f6f3';
   x.fillRect(0, 0, 512, 512);
-  speckle(x, 512, 512, 14000, 'rgba(30,4,3,.16)', 'rgba(255,190,170,.05)');
+  speckle(x, 512, 512, 9000, 'rgba(60,40,30,.035)', 'rgba(255,255,255,.4)');
   return canvasTexture(c, 3);
 }
+
+const BRAND_RED = '#af1c17';
 
 function coverArt() {
   const W = 1024, H = Math.round(1024 * BH / BW);
   const [c, x] = makeCanvas(W, H);
   x.clearRect(0, 0, W, H);
-  x.strokeStyle = '#d8b06a';
-  x.lineWidth = 5;
+  x.strokeStyle = BRAND_RED;
+  x.lineWidth = 4;
   x.setLineDash([22, 14]);
   x.strokeRect(46, 46, W - 92, H - 92);
   x.setLineDash([]);
-  x.fillStyle = '#e2bd76';
+  x.fillStyle = BRAND_RED;
   x.textAlign = 'center';
   x.font = '170px "Alex Brush"';
   x.fillText('mikinoarchive', W / 2, H * .5);
   x.font = 'italic 52px "EB Garamond"';
+  x.fillStyle = '#4a4640';
   x.fillText('the card binder', W / 2, H * .5 + 90);
   x.font = '36px "EB Garamond"';
-  x.fillStyle = '#c9a361';
+  x.fillStyle = '#8a8580';
   x.fillText(`${N} pieces · archive · dallas`, W / 2, H - 120);
   const t = canvasTexture(c);
   return t;
@@ -415,25 +419,25 @@ function coverArt() {
 function insideCoverArt() {
   const W = 1024, H = Math.round(1024 * BH / BW);
   const [c, x] = makeCanvas(W, H);
-  x.fillStyle = '#211d1b';
+  x.fillStyle = '#fbfaf8';
   x.fillRect(0, 0, W, H);
-  speckle(x, W, H, 9000, 'rgba(0,0,0,.18)', 'rgba(255,240,220,.03)');
-  x.strokeStyle = 'rgba(216,176,106,.5)';
+  speckle(x, W, H, 6000, 'rgba(60,40,30,.03)', 'rgba(255,255,255,.4)');
+  x.strokeStyle = 'rgba(175,28,23,.45)';
   x.lineWidth = 3;
   x.strokeRect(60, 60, W - 120, H - 120);
-  x.fillStyle = '#e2bd76';
+  x.fillStyle = BRAND_RED;
   x.textAlign = 'center';
   x.font = '128px "Alex Brush"';
   x.fillText('mikinoarchive', W / 2, H * .38);
   x.font = 'italic 46px "EB Garamond"';
-  x.fillStyle = '#d9c9ad';
+  x.fillStyle = '#4a4640';
   x.fillText('80s–Y2K vintage + modern', W / 2, H * .38 + 90);
   x.fillText('secondhand and curated', W / 2, H * .38 + 146);
   x.font = '40px "EB Garamond"';
-  x.fillStyle = '#c9a361';
+  x.fillStyle = '#2b2925';
   x.fillText(`${N} pieces in stock`, W / 2, H * .66);
   x.font = 'italic 36px "EB Garamond"';
-  x.fillStyle = '#a99c86';
+  x.fillStyle = '#8a8580';
   x.fillText('tap any card to take a closer look', W / 2, H * .66 + 64);
   return canvasTexture(c);
 }
@@ -441,17 +445,17 @@ function insideCoverArt() {
 function pageTexture() {
   const W = 512, H = Math.round(512 * PH / PW);
   const [c, x] = makeCanvas(W, H);
-  x.fillStyle = '#1f1d1c';
+  x.fillStyle = '#f2f0ec';
   x.fillRect(0, 0, W, H);
-  speckle(x, W, H, 5000, 'rgba(0,0,0,.25)', 'rgba(255,255,255,.025)');
+  speckle(x, W, H, 4000, 'rgba(60,40,30,.035)', 'rgba(255,255,255,.4)');
   const holeX = 0.6 / PW * W, r = 0.3 / PW * W;   // hole centre sits 0.6 units in from the page's inner edge
   for (const z of [-PH * .33, 0, PH * .33]) {
     const y = (z + PH / 2) / PH * H;
-    x.fillStyle = '#0b0a09';
+    x.fillStyle = '#cfcac3';
     x.beginPath();
     x.arc(holeX, y, r, 0, Math.PI * 2);
     x.fill();
-    x.strokeStyle = 'rgba(255,255,255,.12)';
+    x.strokeStyle = 'rgba(0,0,0,.12)';
     x.lineWidth = 1.5;
     x.stroke();
   }
@@ -547,13 +551,13 @@ function loadImage(src) {
 }
 
 /* ---------- Build the binder ---------- */
-const tableMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .85, metalness: 0 });
-const table = new THREE.Mesh(new THREE.PlaneGeometry(320, 320), tableMat);
+const tableMat = new THREE.MeshStandardMaterial({ color: 0x9a9a9a, roughness: .85, metalness: 0 });   // darkened so the lit table reads as the brand red
+const table = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), tableMat);
 table.rotation.x = -Math.PI / 2;
 table.receiveShadow = true;
 scene.add(table);
 
-const leatherMat = new THREE.MeshStandardMaterial({ map: leatherTexture(), color: 0x9c6a66, roughness: .72, metalness: 0 });
+const leatherMat = new THREE.MeshStandardMaterial({ map: leatherTexture(), color: 0xffffff, roughness: .6, metalness: 0 });
 const boardGeo = new RoundedBoxGeometry(BW, BT, BH, 3, 0.18);
 
 const backBoard = new THREE.Mesh(boardGeo, leatherMat);
@@ -587,7 +591,7 @@ class Flipper {
     this.dur = reduceMotion ? 1 : Math.max(260, 820 * Math.abs(target - this.from) / Math.PI);
   }
   update(now) {
-    if (this.angle === this.to) return false;
+    if (this.dragging || this.angle === this.to) return false;
     const t = clamp((now - this.start) / this.dur, 0, 1);
     this.angle = t >= 1 ? this.to : this.from + (this.to - this.from) * easeInOut(t);
     this.group.rotation.z = this.angle;
@@ -710,7 +714,7 @@ class LeafFlipper extends Flipper {
   }
   update(now) {
     const moving = super.update(now);
-    if (this.sheet) {
+    if (this.sheet && !this.dragging) {
       if (this.angle === this.to) {
         this.sheet.dispose();
         this.sheet = null;
@@ -734,7 +738,7 @@ const coverBoard = new THREE.Mesh(boardGeo, leatherMat);
 coverBoard.castShadow = coverBoard.receiveShadow = true;
 coverBody.add(coverBoard);
 const artGeo = new THREE.PlaneGeometry(BW - 0.4, BH - 0.4);
-const coverTop = new THREE.Mesh(artGeo, new THREE.MeshStandardMaterial({ transparent: true, roughness: .45, metalness: .35 }));
+const coverTop = new THREE.Mesh(artGeo, new THREE.MeshBasicMaterial({ transparent: true, toneMapped: false }));
 coverTop.quaternion.copy(qFront);
 coverTop.position.y = BT / 2 + 0.004;
 coverBody.add(coverTop);
@@ -1109,6 +1113,96 @@ function pick(clientX, clientY) {
   return null;
 }
 
+/* ---------- Dragging the cover or a page by hand ---------- */
+// Press on the right half of the binder and drag left to turn forward,
+// or on the left half and drag right to turn back.
+const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const dragHit = new THREE.Vector3();
+let pdrag = null;
+
+function binderPoint(clientX, clientY) {
+  if (insp) return null;
+  ndc.set(clientX / window.innerWidth * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+  const shown = (o) => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
+  const hit = raycaster.intersectObjects([...pickables, ...blockers], false).find((h) => shown(h.object));
+  return hit ? hit.point : null;
+}
+
+// Which cover or page a press at world x would pick up, and which way it turns.
+function grabTarget(x) {
+  const busy = (f) => f.angle !== f.to;
+  if (cover.angle !== cover.to || leaves.some(busy)) return null;
+  let f = null, forward = x > 0;
+  if (forward) {
+    if (view === 0) f = cover;
+    else if (view < MAX_VIEW) f = leaves[view - 1];
+  } else if (view === 1) f = cover;
+  else if (view >= 2) f = leaves[view - 2];
+  return f ? { f, forward } : null;
+}
+
+function pointerAngle(clientX, clientY) {
+  ndc.set(clientX / window.innerWidth * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+  if (!raycaster.ray.intersectPlane(dragPlane, dragHit)) return null;
+  return Math.acos(clamp(dragHit.x / pdrag.R, -1, 1));
+}
+
+function applyDrag(a) {
+  const f = pdrag.f;
+  f.angle = a;
+  f.group.rotation.z = a;
+  if (f.sheet) f.sheet.layout(a);
+  needsRender = true;
+}
+
+function startDrag(g, clientX, clientY) {
+  const f = g.f, isCover = f === cover;
+  dragPlane.constant = -(isCover ? coverPivotY : pivotY);
+  ndc.set(clientX / window.innerWidth * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+  if (!raycaster.ray.intersectPlane(dragPlane, dragHit)) return;
+  pdrag = { f, forward: g.forward, R: Math.max(Math.abs(dragHit.x), 0.5 * (X0 + PW)), a: f.angle, t: performance.now(), vel: 0 };
+  f.dragging = true;
+  if (!isCover && !reduceMotion) {
+    if (!f.sheet) f.sheet = new Sheet(f.l);
+    f.group.visible = false;
+  }
+  $('tip').hidden = true;
+  canvas.style.cursor = 'grabbing';
+}
+
+function moveDrag(clientX, clientY) {
+  const a = pointerAngle(clientX, clientY);
+  if (a === null) return;
+  const now = performance.now(), dt = Math.max(1, now - pdrag.t) / 1000;
+  pdrag.vel = pdrag.vel * 0.6 + ((a - pdrag.a) / dt) * 0.4;
+  pdrag.a = a;
+  pdrag.t = now;
+  applyDrag(a);
+}
+
+function endDrag(cancel) {
+  const { f, forward, t } = pdrag;
+  const vel = performance.now() - t > 120 ? 0 : pdrag.vel;   // held still before letting go
+  pdrag = null;
+  f.dragging = false;
+  canvas.style.cursor = 'default';
+  const fling = Math.abs(vel) > 2.5 ? Math.sign(vel) : 0;
+  let done = forward ? f.angle > Math.PI / 2 : f.angle < Math.PI / 2;
+  if (fling) done = forward ? fling > 0 : fling < 0;
+  if (cancel) done = false;
+  if (done) {
+    if (forward) setView(view + 1, view === 0 ? 'right' : 'left');
+    else setView(view - 1, 'right');
+  } else {
+    f.to = NaN;               // force set() to animate back from where it was let go
+    f.set(forward ? 0 : Math.PI);
+  }
+  needsRender = true;
+}
+
 function showTip(x, y, i) {
   const tip = $('tip');
   if (i === null) { tip.hidden = true; return; }
@@ -1120,11 +1214,13 @@ function showTip(x, y, i) {
 }
 
 canvas.addEventListener('pointerdown', (e) => {
-  canvas.setPointerCapture(e.pointerId);
+  try { canvas.setPointerCapture(e.pointerId); } catch (_) { /* synthetic pointer */ }
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (pointers.size === 1) {
-    down = { x: e.clientX, y: e.clientY, t: performance.now(), yaw: user.yaw, pitch: user.pitch, type: e.pointerType };
+    const p = binderPoint(e.clientX, e.clientY);
+    down = { x: e.clientX, y: e.clientY, t: performance.now(), yaw: user.yaw, pitch: user.pitch, type: e.pointerType, grab: p ? grabTarget(p.x) : null };
   } else if (pointers.size === 2) {
+    if (pdrag) endDrag(true);
     const [a, b] = [...pointers.values()];
     pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), zoom: user.zoom };
     down = null;
@@ -1133,22 +1229,21 @@ canvas.addEventListener('pointerdown', (e) => {
 
 canvas.addEventListener('pointermove', (e) => {
   if (pointers.has(e.pointerId)) pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pdrag) { moveDrag(e.clientX, e.clientY); return; }
+  if (down && down.grab && !pinch && pointers.size === 1) {
+    if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 6) {
+      startDrag(down.grab, down.x, down.y);
+      if (pdrag) moveDrag(e.clientX, e.clientY);
+    }
+    return;
+  }
   if (pinch && pointers.size === 2) {
     const [a, b] = [...pointers.values()];
     user.zoom = clamp(pinch.zoom * pinch.d / Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), 0.55, 1.5);
     needsRender = true;
     return;
   }
-  if (down && down.type === 'mouse' && e.buttons) {
-    const dx = e.clientX - down.x, dy = e.clientY - down.y;
-    if (Math.hypot(dx, dy) > 6 && !insp) {
-      user.yaw = clamp(down.yaw - dx * 0.003, -0.4, 0.4);
-      user.pitch = clamp(down.pitch - dy * 0.0025, -0.3, 0.35);
-      $('tip').hidden = true;
-      needsRender = true;
-    }
-    return;
-  }
+  if (down && down.type === 'mouse' && e.buttons) return;   // the view does not rotate
   if (insp) {
     insp.tiltY = (e.clientX / window.innerWidth - 0.5) * 0.35;
     insp.tiltX = (e.clientY / window.innerHeight - 0.5) * 0.28;
@@ -1157,7 +1252,8 @@ canvas.addEventListener('pointermove', (e) => {
   }
   if (e.pointerType === 'mouse') {
     const hit = pick(e.clientX, e.clientY);
-    canvas.style.cursor = hit ? 'pointer' : 'grab';
+    const p = hit && hit.card !== undefined ? null : binderPoint(e.clientX, e.clientY);
+    canvas.style.cursor = hit ? 'pointer' : p && grabTarget(p.x) ? 'grab' : 'default';
     showTip(e.clientX, e.clientY, hit && hit.card !== undefined ? hit.card : null);
   }
 });
@@ -1165,6 +1261,7 @@ canvas.addEventListener('pointermove', (e) => {
 function endPointer(e) {
   pointers.delete(e.pointerId);
   if (pointers.size < 2) pinch = null;
+  if (pdrag) { endDrag(e.type === 'pointercancel'); down = null; return; }
   if (!down || e.type === 'pointercancel') { if (!pointers.size) down = null; return; }
   const dx = e.clientX - down.x, dy = e.clientY - down.y, dt = performance.now() - down.t;
   const d = down;
@@ -1191,7 +1288,7 @@ canvas.addEventListener('wheel', (e) => {
   user.zoom = clamp(user.zoom * Math.exp(e.deltaY * 0.0012), 0.55, 1.5);
   needsRender = true;
 }, { passive: false });
-canvas.addEventListener('dblclick', () => { user.yaw = user.pitch = 0; user.zoom = 1; needsRender = true; });
+canvas.addEventListener('dblclick', () => { user.zoom = 1; needsRender = true; });
 
 $('next').addEventListener('click', () => { if (insp) closeInspect(); next(); });
 $('prev').addEventListener('click', () => { if (insp) closeInspect(); prev(); });
