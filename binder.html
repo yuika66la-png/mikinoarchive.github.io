@@ -325,6 +325,7 @@ scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.35;
 
 const camera = new THREE.PerspectiveCamera(32, window.innerWidth / window.innerHeight, 0.5, 600);
+camera.up.set(0, 0, -1);   // top of the screen is the far edge of the table, so straight-down views work
 scene.add(camera);
 
 scene.add(new THREE.HemisphereLight(0xffffff, 0xdedad6, 0.9));
@@ -393,27 +394,137 @@ function leatherTexture() {
 
 const BRAND_RED = '#af1c17';
 
+// The shop's own "Mikino" logo lettering (binder/logo.png, red on white),
+// turned into a transparent stamp that can be drawn in any colour.
+let logoImg = null;
+const logoInks = {};
+function logoInk(color) {
+  if (!logoImg) return null;
+  if (logoInks[color]) return logoInks[color];
+  const w = logoImg.width, h = logoImg.height;
+  const [c, x] = makeCanvas(w, h);
+  x.drawImage(logoImg, 0, 0);
+  const d = x.getImageData(0, 0, w, h), p = d.data;
+  for (let i = 0; i < p.length; i += 4) {
+    const lo = Math.min(p[i + 1], p[i + 2]);           // red ink has low green and blue, paper is white
+    p[i + 3] = clamp((236 - lo) / 190, 0, 1) * 255;
+  }
+  x.putImageData(d, 0, 0);
+  x.globalCompositeOperation = 'source-in';
+  x.fillStyle = color;
+  x.fillRect(0, 0, w, h);
+  return (logoInks[color] = c);
+}
+// Draw the logo with its left edge (align 'left') or centre at x, `h` tall, centred on y.
+function drawLogo(ctx, color, x, y, h, align) {
+  const ink = logoInk(color);
+  const w = ink ? h * ink.width / ink.height : 0;
+  const left = align === 'left' ? x : x - w / 2;
+  if (ink) { ctx.drawImage(ink, left, y - h / 2, w, h); return w; }
+  ctx.save();                                           // logo missing: fall back to the item-name font
+  ctx.fillStyle = color;
+  ctx.textAlign = align === 'left' ? 'left' : 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `italic ${h * .7}px "EB Garamond"`;
+  ctx.fillText('Mikino', x, y);
+  ctx.restore();
+  return 0;
+}
+
+// Four-point "twinkle" star, Y2K style.
+function sparkle(x, cx, cy, r, color) {
+  const k = r * 0.16;
+  x.save();
+  x.fillStyle = color;
+  x.beginPath();
+  x.moveTo(cx, cy - r);
+  x.quadraticCurveTo(cx + k, cy - k, cx + r, cy);
+  x.quadraticCurveTo(cx + k, cy + k, cx, cy + r);
+  x.quadraticCurveTo(cx - k, cy + k, cx - r, cy);
+  x.quadraticCurveTo(cx - k, cy - k, cx, cy - r);
+  x.fill();
+  x.restore();
+}
+
+// A tapering fairy-wand stroke along a quadratic curve, with twinkles trailing behind it.
+function fairyTrail(x, p0, p1, p2, width, color, sparkles) {
+  const pt = (t) => [
+    (1 - t) * (1 - t) * p0[0] + 2 * (1 - t) * t * p1[0] + t * t * p2[0],
+    (1 - t) * (1 - t) * p0[1] + 2 * (1 - t) * t * p1[1] + t * t * p2[1],
+  ];
+  const n = 80, top = [], bot = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n, [px, py] = pt(t), [qx, qy] = pt(Math.min(1, t + 0.01)), [ox, oy] = pt(Math.max(0, t - 0.01));
+    const dx = qx - ox, dy = qy - oy, len = Math.hypot(dx, dy) || 1;
+    const w = width * Math.pow(t, 1.4) * (1 - 0.35 * Math.pow(t, 6));
+    top.push([px - dy / len * w, py + dx / len * w]);
+    bot.push([px + dy / len * w, py - dx / len * w]);
+  }
+  x.save();
+  x.fillStyle = color;
+  x.beginPath();
+  top.forEach(([a, b], i) => (i ? x.lineTo(a, b) : x.moveTo(a, b)));
+  bot.reverse().forEach(([a, b]) => x.lineTo(a, b));
+  x.closePath();
+  x.fill();
+  x.restore();
+  for (const [t, off, r] of sparkles) {
+    const [px, py] = pt(t);
+    sparkle(x, px, py + off, r, color);
+  }
+  const [ex, ey] = pt(1);
+  sparkle(x, ex, ey, width * 4.2, color);
+}
+
+// Thin double frame with twinkles sitting on the corners.
+function sparkleFrame(x, W, H, inset, color, big) {
+  x.save();
+  x.strokeStyle = color;
+  x.lineWidth = 3;
+  x.beginPath();
+  x.roundRect(inset, inset, W - 2 * inset, H - 2 * inset, 34);
+  x.stroke();
+  x.lineWidth = 1.2;
+  x.beginPath();
+  x.roundRect(inset + 14, inset + 14, W - 2 * inset - 28, H - 2 * inset - 28, 24);
+  x.stroke();
+  x.restore();
+  const corners = [[inset + 7, inset + 7, 1, 1], [W - inset - 7, inset + 7, -1, 1], [inset + 7, H - inset - 7, 1, -1], [W - inset - 7, H - inset - 7, -1, -1]];
+  for (const [cx, cy, sx, sy] of corners) {
+    x.save();
+    x.globalCompositeOperation = 'destination-out';     // gap in the frame lines behind each star
+    x.beginPath();
+    x.arc(cx, cy, big * 0.62, 0, Math.PI * 2);
+    x.fill();
+    x.restore();
+    sparkle(x, cx, cy, big, color);
+    sparkle(x, cx + sx * big * 1.25, cy + sy * big * 0.35, big * 0.32, color);
+    sparkle(x, cx + sx * big * 0.4, cy + sy * big * 1.3, big * 0.22, color);
+  }
+}
+
 function coverArt() {
   const W = 1024, H = Math.round(1024 * BH / BW);
   const [c, x] = makeCanvas(W, H);
   x.clearRect(0, 0, W, H);
-  x.strokeStyle = BRAND_RED;
-  x.lineWidth = 4;
-  x.setLineDash([22, 14]);
-  x.strokeRect(46, 46, W - 92, H - 92);
-  x.setLineDash([]);
+  sparkleFrame(x, W, H, 52, BRAND_RED, 30);
+  const ly = H * .46;
+  fairyTrail(x, [W * .17, ly + 70], [W * .46, ly - 260], [W * .83, ly - 150], 5,
+    BRAND_RED, [[.3, -26, 9], [.45, 30, 6], [.58, -22, 12], [.7, 26, 7], [.8, -18, 5]]);
+  drawLogo(x, BRAND_RED, W / 2, ly, 250);
   x.fillStyle = BRAND_RED;
   x.textAlign = 'center';
-  x.font = '170px "Alex Brush"';
-  x.fillText('mikinoarchive', W / 2, H * .5);
-  x.font = 'italic 52px "EB Garamond"';
+  x.font = '500 40px "EB Garamond"';
+  x.letterSpacing = '22px';
+  x.fillText('ARCHIVE', W / 2 + 11, ly + 160);
+  x.letterSpacing = '0px';
+  x.font = 'italic 46px "EB Garamond"';
   x.fillStyle = '#4a4640';
-  x.fillText('the card binder', W / 2, H * .5 + 90);
-  x.font = '36px "EB Garamond"';
+  x.fillText('the card binder', W / 2, ly + 236);
+  x.font = '34px "EB Garamond"';
   x.fillStyle = '#8a8580';
-  x.fillText(`${N} pieces · archive · dallas`, W / 2, H - 120);
-  const t = canvasTexture(c);
-  return t;
+  x.fillText(`${N} pieces · dallas`, W / 2, H - 130);
+  return canvasTexture(c);
 }
 
 function insideCoverArt() {
@@ -422,17 +533,22 @@ function insideCoverArt() {
   x.fillStyle = '#fbfaf8';
   x.fillRect(0, 0, W, H);
   speckle(x, W, H, 6000, 'rgba(60,40,30,.03)', 'rgba(255,255,255,.4)');
-  x.strokeStyle = 'rgba(175,28,23,.45)';
-  x.lineWidth = 3;
-  x.strokeRect(60, 60, W - 120, H - 120);
+  sparkleFrame(x, W, H, 60, BRAND_RED, 22);
+  x.fillStyle = '#fbfaf8';                                 // refill the gaps cut behind the corner stars
+  x.globalCompositeOperation = 'destination-over';
+  x.fillRect(0, 0, W, H);
+  x.globalCompositeOperation = 'source-over';
+  drawLogo(x, BRAND_RED, W / 2, H * .33, 200);
   x.fillStyle = BRAND_RED;
   x.textAlign = 'center';
-  x.font = '128px "Alex Brush"';
-  x.fillText('mikinoarchive', W / 2, H * .38);
+  x.font = '500 34px "EB Garamond"';
+  x.letterSpacing = '18px';
+  x.fillText('ARCHIVE', W / 2 + 9, H * .33 + 130);
+  x.letterSpacing = '0px';
   x.font = 'italic 46px "EB Garamond"';
   x.fillStyle = '#4a4640';
-  x.fillText('80s–Y2K vintage + modern', W / 2, H * .38 + 90);
-  x.fillText('secondhand and curated', W / 2, H * .38 + 146);
+  x.fillText('80s–Y2K vintage + modern', W / 2, H * .33 + 220);
+  x.fillText('secondhand and curated', W / 2, H * .33 + 276);
   x.font = '40px "EB Garamond"';
   x.fillStyle = '#2b2925';
   x.fillText(`${N} pieces in stock`, W / 2, H * .66);
@@ -476,12 +592,14 @@ function cardBackArt() {
   x.strokeRect(14, 14, W - 28, H - 28);
   x.lineWidth = 1;
   x.strokeRect(22, 22, W - 44, H - 44);
+  drawLogo(x, '#f3dcc0', W / 2, H / 2 - 8, 84);
   x.fillStyle = '#e2bd76';
   x.textAlign = 'center';
-  x.font = '58px "Alex Brush"';
-  x.fillText('mikinoarchive', W / 2, H / 2 + 6);
-  x.font = 'italic 20px "EB Garamond"';
-  x.fillText('archive · dallas', W / 2, H / 2 + 44);
+  x.font = '500 16px "EB Garamond"';
+  x.letterSpacing = '8px';
+  x.fillText('ARCHIVE', W / 2 + 4, H / 2 + 50);
+  x.letterSpacing = '0px';
+  sparkle(x, W / 2, H / 2 - 82, 12, '#e2bd76');
   return canvasTexture(c);
 }
 
@@ -506,9 +624,7 @@ function drawCard(ctx, it, img, W, H) {
   ctx.stroke();
 
   ctx.fillStyle = sig ? '#80622c' : '#af1c17';
-  ctx.textAlign = 'left';
-  ctx.font = `${30 * s}px "Alex Brush"`;
-  ctx.fillText('mikino', 20 * s, 44 * s);
+  drawLogo(ctx, sig ? '#80622c' : '#af1c17', 18 * s, 32 * s, 34 * s, 'left');
   ctx.textAlign = 'right';
   ctx.font = `${21 * s}px "EB Garamond"`;
   ctx.fillText('No. ' + pad(it.n), W - 20 * s, 41 * s);
@@ -742,7 +858,7 @@ const coverTop = new THREE.Mesh(artGeo, new THREE.MeshBasicMaterial({ transparen
 coverTop.quaternion.copy(qFront);
 coverTop.position.y = BT / 2 + 0.004;
 coverBody.add(coverTop);
-const coverInside = new THREE.Mesh(artGeo, new THREE.MeshStandardMaterial({ roughness: .9 }));
+const coverInside = new THREE.Mesh(artGeo, new THREE.MeshBasicMaterial({ toneMapped: false }));   // unlit so the red matches the cover
 coverInside.quaternion.copy(qBack);
 coverInside.position.y = -BT / 2 - 0.004;
 coverInside.receiveShadow = true;
@@ -859,7 +975,7 @@ let focus = 'right';   // which page a narrow screen is looking at
 let needsRender = true;
 const portrait = () => window.innerWidth / window.innerHeight < 0.85;
 
-const BASE_PITCH = 0.6;   // camera tilt from straight down, in radians
+const BASE_PITCH = 0;     // camera looks straight down at the binder
 const camState = { target: new THREE.Vector3(SPINE + BW / 2, 0, 0), dist: 150, yaw: 0, pitch: BASE_PITCH };
 const camGoal = { target: new THREE.Vector3(), dist: 80 };
 const user = { yaw: 0, pitch: 0, zoom: 1 };
@@ -1371,7 +1487,8 @@ async function start() {
     document.fonts.load('italic 20px "EB Garamond"'),
     document.fonts.load('500 20px "EB Garamond"'),
   ]);
-  await Promise.race([fonts, new Promise((r) => setTimeout(r, 2500))]);
+  const logo = loadImage('binder/logo.png').then((img) => { logoImg = img; }).catch(() => {});
+  await Promise.race([Promise.all([fonts, logo]), new Promise((r) => setTimeout(r, 3000))]);
   tableMat.map = surfaceTexture();
   tableMat.needsUpdate = true;
   coverTop.material.map = coverArt();
